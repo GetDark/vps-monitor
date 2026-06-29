@@ -1,48 +1,115 @@
+[English](#english) | [Русский](#русский)
+
+---
+
+<a name="english"></a>
 # vps-monitor
 
-Lightweight FastAPI service that exposes **real-time VPS metrics** via a JSON API — CPU, RAM, disk, network rates, uptime, Docker container count.
+Lightweight FastAPI backend that exposes real-time VPS system metrics via a single JSON endpoint. No external agents or exporters needed — reads the Docker socket directly.
 
-Used as the backend for the live monitoring widget on [agent.swiftstream.ru](https://agent.swiftstream.ru).
+## Endpoints
 
-## Endpoint
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `GET /api/metrics` | Full system metrics JSON |
 
-```
-GET /api/metrics
-```
+## Metrics
 
-```json
-{
-  "cpu":     { "percent": 12.3, "load1": 8.1, "cores": 2 },
-  "memory":  { "used_gb": 1.24, "total_gb": 4.0, "percent": 31.0 },
-  "disk":    { "used_gb": 18.3, "total_gb": 50.0, "percent": 36.6 },
-  "network": { "rx_kbps": 42.1, "tx_kbps": 18.7, "total_rx_gb": 12.4, "total_tx_gb": 5.1 },
-  "uptime":  "12d 3h 42m",
-  "docker_running": 4,
-  "ts": 1750000000
-}
-```
+`GET /api/metrics` returns:
 
-## Run
+| Field | Description |
+|-------|-------------|
+| `cpu.percent` | CPU usage % |
+| `cpu.load1` | 1-min load average (normalized by core count) |
+| `cpu.cores` | Number of logical CPU cores |
+| `memory.used_gb` | Used memory (GB) |
+| `memory.total_gb` | Total memory (GB) |
+| `memory.percent` | Memory usage % |
+| `disk.used_gb` | Used disk (GB) |
+| `disk.total_gb` | Total disk (GB) |
+| `disk.percent` | Disk usage % |
+| `network.rx_kbps` | Incoming traffic (KB/s, delta since last call) |
+| `network.tx_kbps` | Outgoing traffic (KB/s, delta since last call) |
+| `network.total_rx_gb` | Total received (GB) |
+| `network.total_tx_gb` | Total sent (GB) |
+| `uptime` | Human-readable uptime (e.g. `3d 12h 5m`) |
+| `docker_running` | Number of running Docker containers |
+| `ts` | Unix timestamp |
+
+## Quick Start
 
 ```bash
+git clone https://github.com/GetDark/vps-monitor.git
+cd vps-monitor
+
 docker compose up -d
-curl http://localhost:8001/api/metrics
 ```
 
-## nginx proxy
+API available at `http://localhost:8000`.
 
-```nginx
-location /monitor/ {
-    proxy_pass         http://127.0.0.1:8001/;
-    proxy_set_header   Host $host;
-    proxy_set_header   X-Real-IP $remote_addr;
-    proxy_read_timeout 10s;
-}
+CORS is pre-configured for `agent.swiftstream.ru` — edit `app/main.py` to change.
+
+## Tech Stack
+
+- Python 3 / FastAPI
+- psutil (CPU, memory, disk, network)
+- Docker socket API (no CLI needed)
+- Docker + Docker Compose
+
+---
+
+<a name="русский"></a>
+# vps-monitor
+
+Лёгкий FastAPI-бэкенд, отдающий актуальные системные метрики VPS через один JSON-эндпоинт. Без внешних агентов и экспортёров — читает Docker socket напрямую.
+
+## Эндпоинты
+
+| Эндпоинт | Описание |
+|----------|----------|
+| `GET /health` | Проверка здоровья |
+| `GET /api/metrics` | Полный JSON с системными метриками |
+
+## Метрики
+
+`GET /api/metrics` возвращает:
+
+| Поле | Описание |
+|------|----------|
+| `cpu.percent` | Загрузка CPU % |
+| `cpu.load1` | Средняя нагрузка за 1 мин (нормализованная по числу ядер) |
+| `cpu.cores` | Количество логических ядер |
+| `memory.used_gb` | Используемая память (ГБ) |
+| `memory.total_gb` | Общая память (ГБ) |
+| `memory.percent` | Загрузка памяти % |
+| `disk.used_gb` | Занято на диске (ГБ) |
+| `disk.total_gb` | Всего на диске (ГБ) |
+| `disk.percent` | Заполненность диска % |
+| `network.rx_kbps` | Входящий трафик (КБ/с, дельта с последнего запроса) |
+| `network.tx_kbps` | Исходящий трафик (КБ/с, дельта с последнего запроса) |
+| `network.total_rx_gb` | Всего получено (ГБ) |
+| `network.total_tx_gb` | Всего отправлено (ГБ) |
+| `uptime` | Аптайм в читаемом виде (например `3d 12h 5m`) |
+| `docker_running` | Количество запущенных Docker-контейнеров |
+| `ts` | Unix timestamp |
+
+## Быстрый старт
+
+```bash
+git clone https://github.com/GetDark/vps-monitor.git
+cd vps-monitor
+
+docker compose up -d
 ```
 
-## Notes
+API доступен на `http://localhost:8000`.
 
-- `pid: host` in docker-compose — required for psutil to read host process metrics
-- `/var/run/docker.sock` mounted read-only — for `docker ps -q` container count
-- Network rates computed between calls (delta / elapsed seconds)
-- First `/api/metrics` call after start returns `rx_kbps: 0` / `tx_kbps: 0` — expected (no previous sample yet)
+CORS преднастроен для `agent.swiftstream.ru` — изменить в `app/main.py`.
+
+## Технологический стек
+
+- Python 3 / FastAPI
+- psutil (CPU, память, диск, сеть)
+- Docker socket API (без CLI)
+- Docker + Docker Compose
